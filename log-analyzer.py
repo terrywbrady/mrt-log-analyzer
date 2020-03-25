@@ -16,6 +16,7 @@ class MyReporter:
         self.root = "/Users/tbrady/work/logs/"
         self.uiroot = "/Users/tbrady/work/uilogs/"
         self.prefix = r'^\d+\.\d+\.\d+\.\d+ - - \[\d+\/(Jan|Feb|Mar|Apr|May|June|Jul|Aug|Sep|Oct|Nov|Dec)\/\d\d\d\d:\d\d:\d\d:\d\d .\d\d\d\d\] "([^\?]+)(\?.*)? HTTP/1.1" (\d+) (\d+) .*$'
+        self.uiprefix = r'^Started (GET|POST|PUT|DELETE) "(/[^\"]+)" for (\d+\.\d+\.\d+\.\d+) at (\d+-\d+-\d+ \d+:\d+:\d+ .\d+)$'
         self.keys = [
             'post',
             'state',
@@ -40,6 +41,33 @@ class MyReporter:
             'cloudcontainer': r'^GET /cloudcontainer.*'
         }
 
+        self.uiregex = {
+            'login': r'^/login$',
+            'guest-login': r'^/guest_login$',
+            'u-request': r'^/u/([^/]+)/\d+$',
+
+            'view-object-page': r'^/m/([^/]+)$',
+            'view-version-page': r'^/m/([^/]+)/\d+$',
+
+            'download-file': r'^/d/([^/]+)/\d+/.*$',
+
+            'download-object **': r'^/d/([^/]+)$',
+            'download-version **': r'^/d/([^/]+)/\d+$',
+
+            'async-request': r'^/async/([^/]+)/\d+$',
+            'asyncd-request': r'^/asyncd/([^/]+)/\d+\?.*$',
+            'lostorage-page': r'^/lostor.*$',
+
+            'dm-request': r'^/dm/([^/]+)$',
+            's-request': r'^/s/.*$',
+            'collection-request': r'^/collection/.*$',
+            'object-request': r'^/object/recent\.atom\?.*$',
+            'object-ingest': r'^/object/ingest$',
+            'object-update': r'^/object/update/$',
+            'choose-collection': r'^/home/choose_collection$',
+            'word-press-request': r'^/wp.*$',
+            'misc-request': r'^/(https|css|stylesheets).*$',
+        }
         self.arkpos = {
             #'file': 2,
             'version': 2,
@@ -50,6 +78,7 @@ class MyReporter:
         self.arks = {}
 
         self.stats = {}
+        self.uistats = {}
         self.reqsize = {}
         for key in self.keys:
             self.stats[key] = 0
@@ -78,7 +107,10 @@ class MyReporter:
         if size > 0:
             self.reqsize[stat].append(size)
         if (ark != ""):
-            self.arks[ark] = self.arks[ark] + 1 if (ark in self.arks) else 0
+            self.arks[ark] = self.arks[ark] + 1 if (ark in self.arks) else 1
+
+    def recordUiStat(self, stat):
+        self.uistats[stat] = self.uistats[stat] + 1 if (stat in self.uistats) else 1
 
     def reportFile(self, file):
         count = 0;
@@ -107,16 +139,29 @@ class MyReporter:
                             break
                 if (found == False):
                     print(req)
-        print("{} {}".format(file, count))
+        #print("{} {}".format(file, count))
 
     def reportUiFile(self, file):
         count = 0;
         with open(file) as fp:
             for cnt, line in enumerate(fp):
-                if re.match(r'^Started GET', line):
-                    print(line)
+                if re.match(self.uiprefix, line):
+                    m = re.search(self.uiprefix, line)
+                    req = m.group(2)
+                    found = False
+                    for key in self.uiregex:
+                        if (re.match(self.uiregex[key], req)):
+                            self.recordUiStat(key)
+                            found = True
+                            break
+                    #if (found == False):
+                    #    print(req)
 
     def showResults(self):
+        print("")
+        print("Highly Requested Arks")
+        print("=====================")
+
         print("{:>20s}: {:>10s} {:>20s}".format("Key", "Num Requests",
         "Average Size"))
         for k, v in sorted(self.arks.items(), key=lambda item: item[1], reverse=True):
@@ -124,9 +169,19 @@ class MyReporter:
                 break
             print("{} {:>5d}".format(k, v))
 
-        for key in self.keys:
+        print("")
+        print("Storage Requests")
+        print("================")
+
+        for key, v in sorted(self.stats.items(), key=lambda item: item[1], reverse=True):
             avg = (sum(self.reqsize[key]) / len(self.reqsize[key])) if len(self.reqsize[key]) > 0 else 0
             print("{:>20s}: {:>10,d} {:>20,.1f}".format(key + " req", self.stats[key], avg))
+
+        print("")
+        print("UI Requests")
+        print("================")
+        for key, v in sorted(self.uistats.items(), key=lambda item: item[1], reverse=True):
+            print("{:>30s}: {:>10,d}".format(key, self.uistats[key]))
 
 myReporter = MyReporter()
 myReporter.report()
