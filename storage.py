@@ -3,6 +3,7 @@ from pathlib import PosixPath
 from reporter import *
 import urllib.parse
 import re
+import collections
 
 KEY     = 'key'
 REGEX   = 'regex'
@@ -18,7 +19,7 @@ class StorageReporter(Reporter):
 
     def __init__(self):
         Reporter.__init__(self)
-        self.prefix = r'^\d+\.\d+\.\d+\.\d+ - - \[\d+\/(Jan|Feb|Mar|Apr|May|June|Jul|Aug|Sep|Oct|Nov|Dec)\/\d\d\d\d:\d\d:\d\d:\d\d .\d\d\d\d\] "([^\?]+)(\?.*)? HTTP/1.1" (\d+) (\d+) .*$'
+        self.prefix = r'^\d+\.\d+\.\d+\.\d+ - - \[(\d+)\/(Jan|Feb|Mar|Apr|May|June|Jul|Aug|Sep|Oct|Nov|Dec)\/(\d\d\d\d):\d\d:\d\d:\d\d .\d\d\d\d\] "([^\?]+)(\?.*)? HTTP/1.1" (\d+) (\d+) .*$'
         self.keys = [
             {
               KEY:   'post',
@@ -100,12 +101,14 @@ class StorageReporter(Reporter):
             }
         ]
         self.arks = {}
+        self.dates = {}
         self.stats = {}
         self.reqsize = {}
         self.initKeys()
         self.csvHeader(
           [
             'key',
+            'date',
             'ark',
             'version',
             'file',
@@ -130,6 +133,33 @@ class StorageReporter(Reporter):
         if (ark != ""):
             self.arks[ark] = self.arks[ark] + 1 if (ark in self.arks) else 1
 
+    def makeDate(self, y, m, d):
+        if (m == 'Jan'):
+          mm = '01'
+        elif (m == 'Feb'):
+          mm = '02'
+        elif (m == 'Mar'):
+          mm = '03'
+        elif (m == 'Apr'):
+          mm = '04'
+        elif (m == 'May'):
+          mm = '05'
+        elif (m == 'Jun'):
+          mm = '06'
+        elif (m == 'Jul'):
+          mm = '07'
+        elif (m == 'Aug'):
+          mm = '08'
+        elif (m == 'Sep'):
+          mm = '09'
+        elif (m == 'Oct'):
+          mm = '10'
+        elif (m == 'Nov'):
+          mm = '11'
+        elif (m == 'Dec'):
+          mm = '12'
+        return "{}-{}-{}".format(y, mm, d)
+
     def reportFile(self, file):
         count = 0;
         with open(file) as fp:
@@ -137,23 +167,32 @@ class StorageReporter(Reporter):
                 m = re.search(self.prefix, line)
                 if (m == None):
                     continue
-                req = m.group(2)
-                status = m.group(4)
-                size = int(m.group(5))
+                rdate = self.makeDate(m.group(3), m.group(2), m.group(1))
+                req = m.group(4)
+                status = m.group(6)
+                size = int(m.group(7))
+
+                if (rdate not in self.dates):
+                    self.dates[rdate] = {'rec': 0, 'size': 0, 'presign': 0}
+                self.dates[rdate]['rec'] += 1
+                self.dates[rdate]['size'] += size
+
                 count += 1
 
                 type = "n/a"
                 self.stats['total-records'] += 1
                 found = False
                 for config in self.keys:
-                    found = self.processRegexConfig(config, req, size)
+                    found = self.processRegexConfig(config, rdate, req, size)
                     if (found):
+                        if (config[KEY] == 'presign-file'):
+                            self.dates[rdate]['presign'] += 1
                         break
                 if (found == False):
                     print(req)
         #print("{} {}".format(file, count))
 
-    def processRegexConfig(self, config, req, size):
+    def processRegexConfig(self, config, rdate, req, size):
         key = config[KEY]
         regex = config[REGEX]
         pos = config[POS]
@@ -200,7 +239,7 @@ class StorageReporter(Reporter):
 
         print("{:>30s}: {:>10s} ".format("Ark", "Num Requests"))
         for k, v in sorted(self.arks.items(), key=lambda item: item[1], reverse=True):
-            if (v < 100):
+            if (v < 300):
                 break
             print("{:>30s} {:>10d}".format(k, v))
 
@@ -209,6 +248,11 @@ class StorageReporter(Reporter):
         for key, v in sorted(self.stats.items(), key=lambda item: item[1], reverse=True):
             avg = (sum(self.reqsize[key]) / len(self.reqsize[key])) if len(self.reqsize[key]) > 0 else 0
             print("{:>20s}: {:>10,d} {:>20,.1f}".format(key + " req", self.stats[key], avg))
+
+        self.showResultHeader("Requests by Date")
+        print("{:>20s}: {:>10s} {:>10s} {:>20s}".format('DATE', 'REQS', 'PRESIGNS', 'BYTES'))
+        for key in collections.OrderedDict(sorted(self.dates.items())):
+            print("{:>20s}: {:>10,d} {:>10,d} {:>20,.1f}".format(key, self.dates[key]['rec'], self.dates[key]['presign'], self.dates[key]['size']))
 
     def getLogPath(self):
         return str(PosixPath('~/work/logs/').expanduser())
