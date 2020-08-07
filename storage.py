@@ -22,12 +22,6 @@ class StorageReporter(Reporter):
         self.prefix = r'^\d+\.\d+\.\d+\.\d+ - - \[(\d+)\/(Jan|Feb|Mar|Apr|May|June|Jul|Aug|Sep|Oct|Nov|Dec)\/(\d\d\d\d):\d\d:\d\d:\d\d .\d\d\d\d\] "([^\?]+)(\?.*)? HTTP/1.1" (\d+) (\d+) .*$'
         self.keys = [
             {
-              KEY:   'post',
-              SHOW:  False,
-              REGEX: r'^POST .*',
-              POS:   []
-            },
-            {
               KEY:   'state',
               SHOW:  False,
               REGEX: r'^GET /state.*',
@@ -52,6 +46,30 @@ class StorageReporter(Reporter):
               POS:   [P_NA, P_ARK, P_VER, P_FILE]
             },
             {
+              KEY:   'presign-by-token',
+              SHOW:  True,
+              REGEX: r'^GET /presign-obj-by-token/.*$',
+              POS:   []
+            },
+            {
+              KEY:   'presign-by-token-202',
+              SHOW:  True,
+              REGEX: r'^GET /presign-obj-by-token/.*$',
+              POS:   []
+            },
+            {
+              KEY:   'ping',
+              SHOW:  False,
+              REGEX: r'^GET /ping$',
+              POS:   []
+            },
+            {
+              KEY:   'healthcheck',
+              SHOW:  False,
+              REGEX: r'^GET /container/healthcheck.html$',
+              POS:   []
+            },
+            {
               KEY:   'version',
               SHOW:  True,
               REGEX: r'^GET /content/(\d+)/([^/]+)/(\d+)$',
@@ -70,6 +88,12 @@ class StorageReporter(Reporter):
               POS:   [P_NA, P_ARK]
             },
             {
+              KEY:   'add',
+              SHOW:  True,
+              REGEX: r'^GET /add/.*$',
+              POS:   []
+            },
+            {
               KEY:   'dryad-version',
               SHOW:  True,
               REGEX: r'^GET /producer/3041/([^/]+)/(\d+)$',
@@ -79,6 +103,24 @@ class StorageReporter(Reporter):
               KEY:   'produce-version',
               SHOW:  True,
               REGEX: r'^GET /producer/(\d+)/([^/]+)/(\d+)$',
+              POS:   [P_NA, P_ARK, P_VER]
+            },
+            {
+              KEY:   'dryad-asm-ver',
+              SHOW:  True,
+              REGEX: r'^POST /assemble-obj/3041/([^/]+)/(\d+).*$',
+              POS:   [P_ARK, P_VER]
+            },
+            {
+              KEY:   'asm-obj',
+              SHOW:  True,
+              REGEX: r'^POST /assemble-obj/(\d+)/([^/]+).*$',
+              POS:   [P_NA, P_ARK]
+            },
+            {
+              KEY:   'asm-ver',
+              SHOW:  True,
+              REGEX: r'^POST /assemble-obj/(\d+)/([^/]+)/(\d+).*$',
               POS:   [P_NA, P_ARK, P_VER]
             },
             {
@@ -92,6 +134,12 @@ class StorageReporter(Reporter):
               SHOW:  True,
               REGEX: r'^GET /cloudcontainer/(.*)$',
               POS:   [P_OTHER]
+            },
+            {
+              KEY:   'post',
+              SHOW:  False,
+              REGEX: r'^POST .*',
+              POS:   []
             },
             {
               KEY:   'total-records',
@@ -163,36 +211,44 @@ class StorageReporter(Reporter):
     def reportFile(self, file):
         count = 0;
         with open(file) as fp:
-            for cnt, line in enumerate(fp):
-                m = re.search(self.prefix, line)
-                if (m == None):
-                    continue
-                rdate = self.makeDate(m.group(3), m.group(2), m.group(1))
-                req = m.group(4)
-                status = m.group(6)
-                size = int(m.group(7))
+            #print ("Processing {}".format(file))
+            try:
+                for cnt, line in enumerate(fp):
+                    m = re.search(self.prefix, line)
+                    if (m == None):
+                        continue
+                    rdate = self.makeDate(m.group(3), m.group(2), m.group(1))
+                    req = m.group(4)
+                    status = m.group(6)
+                    size = int(m.group(7))
 
-                if (rdate not in self.dates):
-                    self.dates[rdate] = {'rec': 0, 'size': 0, 'presign': 0}
-                self.dates[rdate]['rec'] += 1
-                self.dates[rdate]['size'] += size
+                    if (rdate not in self.dates):
+                        self.dates[rdate] = {'rec': 0, 'size': 0, 'presign': 0, 'download': 0}
+                    self.dates[rdate]['rec'] += 1
+                    self.dates[rdate]['size'] += size
 
-                count += 1
+                    count += 1
 
-                type = "n/a"
-                self.stats['total-records'] += 1
-                found = False
-                for config in self.keys:
-                    found = self.processRegexConfig(config, rdate, req, size)
-                    if (found):
-                        if (config[KEY] == 'presign-file'):
-                            self.dates[rdate]['presign'] += 1
-                        break
-                if (found == False):
-                    print(req)
-        #print("{} {}".format(file, count))
+                    type = "n/a"
+                    self.stats['total-records'] += 1
+                    found = False
+                    for config in self.keys:
+                        found = self.processRegexConfig(config, rdate, req, size, status)
+                        if (found):
+                            if (config[KEY] == 'presign-file'):
+                                self.dates[rdate]['presign'] += 1
+                            if (config[KEY] == 'producer-file'):
+                                self.dates[rdate]['download'] += 1
+                            if (config[KEY] == 'system-file'):
+                                self.dates[rdate]['download'] += 1
+                            break
+                    if (found == False):
+                        print(req)
 
-    def processRegexConfig(self, config, rdate, req, size):
+            except UnicodeDecodeError:
+                print("Error processing line of file {} count".format(file))
+
+    def processRegexConfig(self, config, rdate, req, size, status):
         key = config[KEY]
         regex = config[REGEX]
         pos = config[POS]
@@ -200,6 +256,8 @@ class StorageReporter(Reporter):
             return False
         if (not(re.match(regex, req))):
             return False
+        if (key == 'presign-by-token' and status == '202'):
+            key = 'presign-by-token-202'
         m = re.search(regex, req)
         row = [
             key,
@@ -247,12 +305,12 @@ class StorageReporter(Reporter):
 
         for key, v in sorted(self.stats.items(), key=lambda item: item[1], reverse=True):
             avg = (sum(self.reqsize[key]) / len(self.reqsize[key])) if len(self.reqsize[key]) > 0 else 0
-            print("{:>20s}: {:>10,d} {:>20,.1f}".format(key + " req", self.stats[key], avg))
+            print("{:>30s}: {:>10,d} {:>20,.1f}".format(key + " req", self.stats[key], avg))
 
         self.showResultHeader("Requests by Date")
-        print("{:>20s}: {:>10s} {:>10s} {:>20s}".format('DATE', 'REQS', 'PRESIGNS', 'BYTES'))
+        print("{:>20s}: {:>10s} {:>10s} {:>10s} {:>20s}".format('DATE', 'REQS', 'PRESIGNS', 'DOWNLOADS', 'BYTES'))
         for key in collections.OrderedDict(sorted(self.dates.items())):
-            print("{:>20s}: {:>10,d} {:>10,d} {:>20,.1f}".format(key, self.dates[key]['rec'], self.dates[key]['presign'], self.dates[key]['size']))
+            print("{:>20s}: {:>10,d} {:>10,d} {:>10,d} {:>20,.1f}".format(key, self.dates[key]['rec'], self.dates[key]['presign'], self.dates[key]['download'], self.dates[key]['size']))
 
     def getLogPath(self):
         return str(PosixPath('~/work/logs/').expanduser())
