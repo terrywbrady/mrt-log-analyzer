@@ -2,6 +2,7 @@ from pathlib import Path
 from pathlib import PosixPath
 from reporter import *
 import re
+import os
 
 class UIReporter(Reporter):
 
@@ -38,7 +39,9 @@ class UIReporter(Reporter):
         }
 
     def getLogPath(self):
-        return str(PosixPath('~/work/uilogs/').expanduser())
+        path = os.environ.get('UILOG', '/tmp/ui-logs')
+        print("UILOG={}".format(path))
+        return path
 
     def recordStat(self, stat):
         self.uistats[stat] = self.uistats[stat] + 1 if (stat in self.uistats) else 1
