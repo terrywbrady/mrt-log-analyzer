@@ -19,7 +19,7 @@ class UIReporter(Reporter):
             'view-version-page /m/ark/ver': r'^/m/([^/]+)/\d+$',
 
             'presign-file': r'^/api/presign-file/.*$',
-            'presign-version': r'^/api/assemble-version/\d+.*$',
+            'presign-version': r'^/api/assemble-version/.*$',
             'presign-object': r'^/api/assemble-obj/.*$',
             'presign-token': r'^/api/presign-obj-by-token/.*$',
 
