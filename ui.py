@@ -50,6 +50,7 @@ class UIReporter(Reporter):
         count = 0;
         with open(file) as fp:
             for cnt, line in enumerate(fp):
+                line = line[89:]
                 if re.match(self.uiprefix, line):
                     m = re.search(self.uiprefix, line)
                     req = m.group(2)
