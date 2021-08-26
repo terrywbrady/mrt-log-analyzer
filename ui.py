@@ -21,6 +21,7 @@ class UIReporter(Reporter):
             'presign-file': r'^/api/presign-file/.*$',
             'presign-version': r'^/api/assemble-obj/\d+.*$',
             'presign-object': r'^/api/assemble-obj/.*$',
+            'presign-token': r'^/api/presign-obj-by-token/.*$',
 
             'download-file': r'^/d/([^/]+)/\d+/.*$',
 
