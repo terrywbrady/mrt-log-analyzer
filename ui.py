@@ -18,6 +18,10 @@ class UIReporter(Reporter):
             'view-object-page': r'^/m/([^/]+)$',
             'view-version-page': r'^/m/([^/]+)/\d+$',
 
+            'presign-file': r'^/api/presign-file/.*$',
+            'presign-version': r'^/api/assemble-obj/\d+.*$',
+            'presign-object': r'^/api/assemble-obj/.*$',
+
             'download-file': r'^/d/([^/]+)/\d+/.*$',
 
             'download-object **': r'^/d/([^/]+)$',
