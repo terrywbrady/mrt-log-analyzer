@@ -15,8 +15,8 @@ class UIReporter(Reporter):
             'guest-login': r'^/guest_login$',
             'u-request': r'^/u/([^/]+)/\d+$',
 
-            'view-object-page': r'^/m/([^/]+)$',
-            'view-version-page': r'^/m/([^/]+)/\d+$',
+            'view-object-page /m/ark': r'^/m/([^/]+)$',
+            'view-version-page /m/ark/ver': r'^/m/([^/]+)/\d+$',
 
             'presign-file': r'^/api/presign-file/.*$',
             'presign-version': r'^/api/assemble-obj/\d+.*$',
@@ -35,7 +35,7 @@ class UIReporter(Reporter):
             'dm-request': r'^/dm/([^/]+)$',
             's-request': r'^/s/.*$',
             'collection-request': r'^/collection/.*$',
-            'object-request': r'^/object/recent\.atom\?.*$',
+            'atom-object-request': r'^/object/recent\.atom\?.*$',
             'object-ingest': r'^/object/ingest$',
             'object-update': r'^/object/update/$',
             'choose-collection': r'^/home/choose_collection$',
