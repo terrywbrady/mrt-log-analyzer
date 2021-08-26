@@ -13,8 +13,8 @@ from ui import UIReporter
 class MyReporter:
     def __init__(self):
         self.reporters = [
-            StorageReporter(),
-            #UIReporter()
+            #StorageReporter(),
+            UIReporter()
         ]
 
     def report(self):

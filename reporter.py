@@ -1,5 +1,6 @@
 import os
 import csv
+import re
 
 KEY     = 'key'
 REGEX   = 'regex'
@@ -42,6 +43,8 @@ class Reporter:
         files = []
         self.reportDir(files, self.getLogPath())
         for entry in files:
+            if re.match(r'.*\.gz$', entry):
+                continue
             self.reportFile(entry)
 
     def reportDir(self, list, dir):
