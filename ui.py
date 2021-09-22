@@ -8,7 +8,7 @@ class UIReporter(Reporter):
 
     def __init__(self):
         Reporter.__init__(self)
-        self.uiprefix = r'^Started (GET|POST|PUT|DELETE) "(/[^\"]+)" for (\d+\.\d+\.\d+\.\d+) at (\d+-\d+-\d+ \d+:\d+:\d+ .\d+)$'
+        self.uiprefix = r'^ *Started (GET|POST|PUT|DELETE) "(/[^\"]+)" for (\d+\.\d+\.\d+\.\d+) at (\d+-\d+-\d+ \d+:\d+:\d+ .\d+)$'
         self.uistats = {}
         self.uiregex = {
             'login': r'^/login$',
@@ -55,7 +55,7 @@ class UIReporter(Reporter):
         count = 0;
         with open(file) as fp:
             for cnt, line in enumerate(fp):
-                line = line[89:]
+                line = line[88:]
                 if re.match(self.uiprefix, line):
                     m = re.search(self.uiprefix, line)
                     req = m.group(2)
